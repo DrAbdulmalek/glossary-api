@@ -60,10 +60,22 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add project_context*.txt project_context*.md 2>/dev/null || true
+          # Add only files that actually exist (avoid git add failing on unmatched globs)
+          # This was the bug: `git add a*.txt a*.md` fails atomically if either glob misses.
+          shopt -s nullglob
+          context_files=(project_context*.txt project_context*.md)
+          shopt -u nullglob
+
+          if [ ${#context_files[@]} -eq 0 ]; then
+            echo "❌ لا توجد ملفات project_context للرفع"
+            exit 1
+          fi
+
+          echo "📁 ملفات للرفع: ${context_files[*]}"
+          git add "${context_files[@]}"
 
           if git diff --cached --quiet; then
-            echo "✅ لا توجد تغييرات جديدة"
+            echo "✅ لا توجد تغييرات جديدة (الملف لم يتغير منذ آخر run)"
           else
             git commit -m "🤖 توليد سياق المشروع تلقائياً — $(date +'%Y-%m-%d %H:%M')"
             git push
