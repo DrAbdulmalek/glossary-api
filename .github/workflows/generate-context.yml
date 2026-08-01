@@ -1,0 +1,71 @@
+name: 📦 Generate Project Context
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_size:
+        description: "الحد الأقصى لحجم السياق (بالأحرف)"
+        required: false
+        default: "800000"
+      split:
+        description: "تقسيم السياق إذا كان كبيراً؟ (true/false)"
+        required: false
+        default: "false"
+      format:
+        description: "صيغة المخرج (md أو txt)"
+        required: false
+        default: "txt"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: استخراج سياق المشروع
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Generate Context File
+        run: |
+          mkdir -p .github/scripts
+          python .github/scripts/repo_to_context.py .             --output project_context             --max-size ${{ github.event.inputs.max_size }}             ${{ github.event.inputs.split == 'true' && '--split' || '' }}
+
+          # تحويل الامتداد إلى المطلوب
+          if [ "${{ github.event.inputs.format }}" = "txt" ]; then
+            mv project_context.md project_context.txt 2>/dev/null || true
+            for f in project_context_part*.md; do 
+              [ -e "$f" ] && mv "$f" "${f%.md}.txt"
+            done
+          fi
+
+          echo "📁 الملفات المنتجة:"
+          ls -lh project_context* 2>/dev/null || echo "لا توجد ملفات"
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add project_context*.txt project_context*.md 2>/dev/null || true
+
+          if git diff --cached --quiet; then
+            echo "✅ لا توجد تغييرات جديدة"
+          else
+            git commit -m "🤖 توليد سياق المشروع تلقائياً — $(date +'%Y-%m-%d %H:%M')"
+            git push
+            echo "✅ تم رفع الملف بنجاح"
+          fi
