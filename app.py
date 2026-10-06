@@ -303,18 +303,17 @@ async def search_terms(
 @app.post("/api/terms", status_code=201)
 async def create_term(term: TermCreate):
     with get_db() as conn:
-        try:
-            cursor = conn.execute(
-                """INSERT INTO terms (english, arabic, definition_en, definition_ar,
-                   category, source, term_type, confidence, notes, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))""",
-                (
-                    term.english, term.arabic, term.definition_en, term.definition_ar,
-                    term.category, term.source, term.term_type, term.confidence, term.notes,
-                ),
-            )
-            term_id = cursor.lastrowid
-            row = conn.execute("SELECT * FROM terms WHERE id = ?", (term_id,)).fetchone()
+        cursor = conn.execute(
+            """INSERT INTO terms (english, arabic, definition_en, definition_ar,
+               category, source, term_type, confidence, notes, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))""",
+            (
+                term.english, term.arabic, term.definition_en, term.definition_ar,
+                term.category, term.source, term.term_type, term.confidence, term.notes,
+            ),
+        )
+        term_id = cursor.lastrowid
+        row = conn.execute("SELECT * FROM terms WHERE id = ?", (term_id,)).fetchone()
     return row_to_dict(row)
 
 
